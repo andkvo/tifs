@@ -44,22 +44,14 @@ app.post("/create", async (req, res) => {
   );
 
   clientRepo
-    .add({
+    .create({
       organizationName: jsonBody.organizationName,
       cecePhoneNumber: "",
       cecePhoneNumberTwilioSid: "",
-      ceceEmailAddress: "",
-      greetingStyle: jsonBody.greetingStyle,
       slackChannelId: "",
-      clientMobileNumber: jsonBody.clientMobileNumber,
       requestedAreaCode: jsonBody.requestedAreaCode,
       primaryContactName: jsonBody.primaryContactName,
-      websiteUrl: jsonBody.websiteUrl,
       isAccountSuspended: false,
-      wasTextingRequested: true,
-      wasVoiceRequested: true,
-      wasTextingManuallyApproved: false,
-      wasVoiceManuallyApproved: false,
       minimumBalanceRequiredInTenths: 5000,
       warningBalanceInTenths: 7000,
       wasWarnedAboutBalance: false,
@@ -96,8 +88,6 @@ app.get("/approve", async (req, res) => {
 
   if (!orgPrefs) throw new Error("Org prefs not found");
 
-  orgPrefs.wasTextingManuallyApproved = true;
-  orgPrefs.wasVoiceManuallyApproved = true;
   clientRepo.save(orgPrefs).catch((err) => logWithTimestamp(LogLevel.Error, err));
 
   let responseString = `Client ID: ${clientId}\n`;
@@ -270,15 +260,10 @@ async function createSlackChannel(orgPrefs: ClientOrganization & IIdentity): Pro
 
   const slackChannelId = slackResponse.data.channel.id;
 
-  const primaryContact = orgPrefs.primaryContactName ? `\nPrimary Contact: ${orgPrefs.primaryContactName}` : "";
-  const website = orgPrefs.websiteUrl ? `\n${orgPrefs.websiteUrl}` : "";
-  const topic = `${orgPrefs.organizationName}${primaryContact}${website}`;
-
   const slackResponse2 = await axios.post(
     "https://slack.com/api/channels.setTopic",
     {
       channel: slackChannelId,
-      topic: topic,
     },
     {
       headers: {
@@ -390,69 +375,58 @@ export const provisionOfficePubSubMessageHandler = async (message: any, ctx: any
 
   //TODO: enforce uniqueness on anything we key off of to deliver messages (mobile number, slack channel)
 
-  if (
-    (orgPrefs.wasTextingRequested && (appPrefs.automaticallyApproveTexting || orgPrefs.wasTextingManuallyApproved)) ||
-    (orgPrefs.wasVoiceRequested && (appPrefs.automaticallyApproveVoice || orgPrefs.wasVoiceManuallyApproved))
-  ) {
-    // Find and then purchase a phone number
-    const phoneNumberData = await client
-      .availablePhoneNumbers("US")
-      .local.list(
-        {
-          areaCode: parseInt(orgPrefs.requestedAreaCode, 10),
-          mmsEnabled: true,
-          smsEnabled: true,
-          voiceEnabled: true,
-          pageSize: 1,
-        },
-        (err) => {
-          if (err) {
-            logWithTimestamp(LogLevel.Error, err.message);
-            throw err;
-          }
-        },
-      )
-      .then((data) => {
-        logWithTimestamp(LogLevel.Info, "Processing new phone number response...");
-        logWithTimestamp(LogLevel.Debug, "Response", data);
-
-        if (data.length < 1) {
-          logWithTimestamp(LogLevel.Error, "No phone numbers returned for this area code");
-          throw new Error("No phone numbers were found for this area code");
+  // Find and then purchase a phone number
+  const phoneNumberData = await client
+    .availablePhoneNumbers("US")
+    .local.list(
+      {
+        areaCode: parseInt(orgPrefs.requestedAreaCode, 10),
+        mmsEnabled: true,
+        smsEnabled: true,
+        voiceEnabled: true,
+        pageSize: 1,
+      },
+      (err) => {
+        if (err) {
+          logWithTimestamp(LogLevel.Error, err.message);
+          throw err;
         }
+      },
+    )
+    .then((data) => {
+      logWithTimestamp(LogLevel.Info, "Processing new phone number response...");
+      logWithTimestamp(LogLevel.Debug, "Response", data);
 
-        const number = data[0];
+      if (data.length < 1) {
+        logWithTimestamp(LogLevel.Error, "No phone numbers returned for this area code");
+        throw new Error("No phone numbers were found for this area code");
+      }
 
-        return client.incomingPhoneNumbers.create({
-          phoneNumber: number.phoneNumber,
-          voiceApplicationSid: appPrefs.twimlVoiceAppSid,
-          smsApplicationSid: appPrefs.twimlVoiceAppSid,
-        });
-      })
-      .then((purchasedNumber) => {
-        logWithTimestamp(LogLevel.Info, "Created phone number", purchasedNumber);
-        // save number with organization preferences
-        return {
-          cecePhoneNumber: purchasedNumber.phoneNumber,
-          cecePhoneNumberTwilioSid: purchasedNumber.sid,
-        };
+      const number = data[0];
+
+      return client.incomingPhoneNumbers.create({
+        phoneNumber: number.phoneNumber,
+        voiceApplicationSid: appPrefs.twimlVoiceAppSid,
+        smsApplicationSid: appPrefs.twimlVoiceAppSid,
       });
+    })
+    .then((purchasedNumber) => {
+      logWithTimestamp(LogLevel.Info, "Created phone number", purchasedNumber);
+      // save number with organization preferences
+      return {
+        cecePhoneNumber: purchasedNumber.phoneNumber,
+        cecePhoneNumberTwilioSid: purchasedNumber.sid,
+      };
+    });
 
-    orgPrefs.cecePhoneNumber = phoneNumberData.cecePhoneNumber;
-    orgPrefs.cecePhoneNumberTwilioSid = phoneNumberData.cecePhoneNumberTwilioSid;
+  orgPrefs.cecePhoneNumber = phoneNumberData.cecePhoneNumber;
+  orgPrefs.cecePhoneNumberTwilioSid = phoneNumberData.cecePhoneNumberTwilioSid;
 
-    orgPrefs.slackChannelId = await createSlackChannel(orgPrefs);
+  orgPrefs.slackChannelId = await createSlackChannel(orgPrefs);
 
-    await sendIntroductorySms(orgPrefs, getIntroductoryMessages()).catch((err) =>
-      logWithTimestamp(LogLevel.Error, err),
-    );
+  await sendIntroductorySms(orgPrefs, getIntroductoryMessages()).catch((err) => logWithTimestamp(LogLevel.Error, err));
 
-    await postIntroductoryMessagesInSlack(orgPrefs, getIntroductoryMessages());
-  }
-
-  const emailAddress = await createEmailAlias(orgPrefs);
-
-  orgPrefs.ceceEmailAddress = emailAddress;
+  await postIntroductoryMessagesInSlack(orgPrefs, getIntroductoryMessages());
 
   const clientRepo = <IClientOrganizationRepository>new FirebaseClientOrganizationRepository();
 
@@ -461,40 +435,5 @@ export const provisionOfficePubSubMessageHandler = async (message: any, ctx: any
     return;
   });
 };
-
-function createEmailAlias(orgPrefs: ClientOrganization & IIdentity): Promise<string> {
-  // function authenticate() {
-  //   return gapi.auth2.getAuthInstance()
-  //       .signIn({scope: "https://www.googleapis.com/auth/admin.directory.user https://www.googleapis.com/auth/admin.directory.user.alias"})
-  //       .then(function() { console.log("Sign-in successful"); },
-  //             function(err) { console.error("Error signing in", err); });
-  // }
-  // function loadClient() {
-  //   return gapi.client.load("https://content.googleapis.com/discovery/v1/apis/admin/directory_v1/rest")
-  //       .then(function() { console.log("GAPI client loaded for API"); },
-  //             function(err) { console.error("Error loading GAPI client for API", err); });
-  // }
-  // // Make sure the client is loaded and sign-in is complete before calling this method.
-  // function execute() {
-  //   return gapi.client.directory.users.aliases.insert({
-  //     "userKey": "cece@meetcece.com",
-  //     "alt": "json",
-  //     "prettyPrint": true,
-  //     "resource": {
-  //       "alias": "pyrovox@meetcece.com"
-  //     }
-  //   })
-  //       .then(function(response) {
-  //               // Handle the results here (response.result has the parsed body).
-  //               console.log("Response", response);
-  //             },
-  //             function(err) { console.error("Execute error", err); });
-  // }
-  // gapi.load("client:auth2", function() {
-  //   gapi.auth2.init({client_id: YOUR_CLIENT_ID});
-  // });
-
-  return Promise.resolve("___notimplemented___@meetcece.com");
-}
 
 export const provisionOfficeHttpController = app;

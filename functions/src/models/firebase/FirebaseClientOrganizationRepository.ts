@@ -4,7 +4,7 @@ import * as admin from "firebase-admin";
 import { IIdentity } from "../common/IIdentity";
 
 export class FirebaseClientOrganizationRepository implements IClientOrganizationRepository {
-  add(orgPrefs: ClientOrganization): Promise<ClientOrganization & IIdentity> {
+  create(orgPrefs: ClientOrganization): Promise<ClientOrganization & IIdentity> {
     console.log("Saving new ClientOrganization...", orgPrefs);
     return admin
       .firestore()

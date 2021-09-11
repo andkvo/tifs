@@ -51,7 +51,7 @@ function sendMessageAsText(msgData: {
   return client.api.messages
     .create({
       body: msgData.message,
-      to: msgData.orgPrefs.clientMobileNumber,
+      to: "",
       from: msgData.orgPrefs.cecePhoneNumber,
     })
     .then((msg) => {

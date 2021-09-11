@@ -3,7 +3,9 @@
 module.exports = function (functions: any) {
   // const handlePubSubTopic = pubSubHandlerFactory(functions);
 
-  const slackInstallationExpressApp = require("./routes")();
+  const config = functions.config();
+
+  const slackInstallationExpressApp = require("./routes")(config);
 
   const slackAppInstallation = functions.https.onRequest(slackInstallationExpressApp);
 

@@ -52,11 +52,10 @@ export const suspendClientAccountPubSubMessageHandler = async (message: Message,
 async function sendBalanceWarning(orgPrefs: ClientOrganization & IIdentity, clientRepo: IClientOrganizationRepository) {
   if (!orgPrefs.wasWarnedAboutBalance) {
     const minBalanceString = new FormatsCurrency().formatTenths(orgPrefs.minimumBalanceRequiredInTenths);
-
     const quickMessenger = new SendQuickMessagesToClient(orgPrefs, makeTwilioClient());
     await quickMessenger.sendMessagesToClient([
       `Your account balance is getting low.
-      To avoid an interruption of service, you must maintain a minimum account balance of ${minBalanceString}. 
+      To avoid an interruption of service, you must maintain a minimum account balance of ${minBalanceString}.
       Please log in to your account to add funds.`,
     ]);
   }
@@ -71,10 +70,9 @@ async function suspendAccount(orgPrefs: ClientOrganization & IIdentity, clientRe
 
   if (!alreadySuspended) {
     const minBalanceString = new FormatsCurrency().formatTenths(orgPrefs.minimumBalanceRequiredInTenths);
-
     const quickMessenger = new SendQuickMessagesToClient(orgPrefs, twilioClient);
     await quickMessenger.sendMessagesToClient([
-      `Your account has been suspended due to your failure to maintain a minimum balance of ${minBalanceString}. 
+      `Your account has been suspended due to your failure to maintain a minimum balance of ${minBalanceString}.
       This phone number will be deleted from our system in 30 days.
       To continue your service, please log in to your account to add funds.`,
     ]);

@@ -12,16 +12,8 @@ export class ClientOrganizationRepository implements IClientOrganizationReposito
     this.repo = repo;
   }
 
-  async add(orgPrefs: ClientOrganization): Promise<(ClientOrganization & IIdentity) | null> {
-    orgPrefs.clientMobileNumber = this.phoneNumberFormatter.format(orgPrefs.clientMobileNumber);
-
-    const existingClient = await this.repo.lookupByClientMobilePhoneNumber(orgPrefs.clientMobileNumber);
-
-    if (existingClient) {
-      throw new Error("Client mobile number is already registered");
-    }
-
-    return this.repo.add(orgPrefs);
+  async create(orgPrefs: ClientOrganization): Promise<(ClientOrganization & IIdentity) | null> {
+    return this.repo.create(orgPrefs);
   }
 
   find(uid: string): Promise<(ClientOrganization & IIdentity) | null> {

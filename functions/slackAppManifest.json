@@ -1,0 +1,44 @@
+{
+  "_metadata": {
+    "major_version": 1,
+    "minor_version": 1
+  },
+  "display_information": {
+    "name": "TIFS Text It From Slack",
+    "description": "Send and receive text messages to a list or individual customers",
+    "background_color": "#5a9e16"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "TIFS Text It From Slack",
+      "always_online": false
+    },
+    "slash_commands": [
+      {
+        "command": "/start-texting",
+        "url": "https://us-central1-textitfromslack.cloudfunctions.net/helloWorld",
+        "description": "Registers a channel for text integration",
+        "usage_hint": "(reply-all|reply-direct)",
+        "should_escape": true
+      },
+      {
+        "command": "/subscribe",
+        "url": "https://us-central1-textitfromslack.cloudfunctions.net/helloWorld",
+        "description": "Subscribe a phone number for texts from this channel",
+        "usage_hint": "phone [name]",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "redirect_urls": ["https://us-central1-textitfromslack.cloudfunctions.net/slackAppInstallation/info"],
+    "scopes": {
+      "bot": ["channels:join", "chat:write", "commands", "users:read", "groups:write", "mpim:write", "im:write"]
+    }
+  },
+  "settings": {
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}
