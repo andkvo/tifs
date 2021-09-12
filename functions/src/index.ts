@@ -83,4 +83,4 @@ export const reinstateClientAccountHandler = handlePubSubTopic(
 
 export const fundsAddedHandler = handlePubSubTopic("funds-added", fundsAddedBillingPubSubHandler);
 
-export const { slackAppInstallation } = require("./slackApp")(functions);
+export const { slackAppInstallation, beginFreeTrialSlack } = require("./slackApp")(functions);

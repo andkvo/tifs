@@ -6,12 +6,18 @@
   "display_information": {
     "name": "TIFS Text It From Slack",
     "description": "Send and receive text messages to a list or individual customers",
-    "background_color": "#5a9e16"
+    "background_color": "#5a9e16",
+    "long_description": "Send text messages to the distribution list you specify from within Slack. Replies and incoming text messages will be routed to you too. Facilitate customer engagement across your entire team."
   },
   "features": {
+    "app_home": {
+      "home_tab_enabled": true,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
     "bot_user": {
       "display_name": "TIFS Text It From Slack",
-      "always_online": false
+      "always_online": true
     },
     "slash_commands": [
       {
@@ -33,10 +39,29 @@
   "oauth_config": {
     "redirect_urls": ["https://us-central1-textitfromslack.cloudfunctions.net/slackAppInstallation/info"],
     "scopes": {
-      "bot": ["channels:join", "chat:write", "commands", "users:read", "groups:write", "mpim:write", "im:write"]
+      "bot": [
+        "channels:join",
+        "chat:write",
+        "commands",
+        "users:read",
+        "groups:write",
+        "mpim:write",
+        "im:write",
+        "channels:history",
+        "im:history",
+        "mpim:history"
+      ]
     }
   },
   "settings": {
+    "event_subscriptions": {
+      "request_url": "https://us-central1-textitfromslack.cloudfunctions.net/slack/events-webhook",
+      "bot_events": ["app_uninstalled", "message.channels", "message.im", "message.mpim", "tokens_revoked"]
+    },
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://us-central1-textitfromslack.cloudfunctions.net/helloWorld"
+    },
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,
     "token_rotation_enabled": false

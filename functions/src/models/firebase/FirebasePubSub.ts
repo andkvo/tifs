@@ -1,6 +1,6 @@
 import { IPubSub, MessageTypeTag } from "../pubsub/IPubSub";
 import { IPubSubMessageInfo } from "../pubsub/IPubSubMessageInfo";
-const PubSub = require("@google-cloud/pubsub");
+import { PubSub } from "@google-cloud/pubsub";
 import * as admin from "firebase-admin";
 import { Message } from "firebase-functions/lib/providers/pubsub";
 
@@ -11,7 +11,6 @@ export class FirebasePubSub implements IPubSub {
 
     return pubsub
       .topic(tag)
-      .publisher()
       .publish(dataBuffer)
       .then((messageId: any) => {
         return { messageId: messageId };

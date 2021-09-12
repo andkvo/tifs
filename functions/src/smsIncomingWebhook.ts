@@ -10,7 +10,7 @@ import { ClientOrganization } from "./models/clientOrganizations/ClientOrganizat
 import { IIdentity } from "./models/common/IIdentity";
 import { IPubSub } from "./models/pubsub/IPubSub";
 import { FirebasePubSub } from "./models/firebase/FirebasePubSub";
-const PubSub = require("@google-cloud/pubsub");
+import { PubSub } from "@google-cloud/pubsub";
 
 const app = express();
 
@@ -51,7 +51,6 @@ app.post("/incoming", async (req: express.Request, res: express.Response) => {
 
   pubsub
     .topic("incoming-sms")
-    .publisher()
     .publish(dataBuffer)
     .then((messageId: any) => {
       logWithTimestamp(LogLevel.Info, `Published message ${messageId}`);

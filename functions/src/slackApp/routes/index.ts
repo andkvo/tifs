@@ -5,6 +5,7 @@ import axios from "axios";
 import { FirebaseSlackTeamRepository } from "../../models/firebase/FirebaseSlackTeamRepository";
 import { FirebaseClientOrganizationRepository } from "../../models/firebase/FirebaseClientOrganizationRepository";
 import { SlackWorkspaceSdk } from "../../models/slack/SlackWorkspaceSdk";
+import { PubSub } from "@google-cloud/pubsub";
 
 module.exports = function routes(config: any) {
   const app = express();
@@ -49,7 +50,10 @@ module.exports = function routes(config: any) {
 
     console.log("Got OAuth Response", oauthResponse);
 
+    // todo: error if team exists already - they already got a free trial
+
     const clientRepo = new FirebaseClientOrganizationRepository();
+
     const client = await clientRepo.create({
       organizationName: "",
       requestedAreaCode: "",
@@ -89,7 +93,18 @@ module.exports = function routes(config: any) {
       "Hello, there! Thanks for trying TIFS Text It From Slack. Hang tight while I get you set up with a free trial.",
     );
 
-    return res.json({ client, team, welcomeMessage });
+    const tosMessage = await slack.postMessage(
+      conv.channel.id,
+      "Once you have read our Terms of Service, click 'Accept' and I will get things started.",
+    );
+
+    const pubsub = new PubSub();
+    const dataBuffer = Buffer.from(JSON.stringify(client));
+    const publishResponse = await pubsub.topic("begin-free-trial-slack").publish(dataBuffer);
+
+    console.log("publish response", publishResponse);
+
+    return res.json({ client, team, welcomeMessage, tosMessage });
   });
 
   app.get("/direct", c.directInstall.bind(c));

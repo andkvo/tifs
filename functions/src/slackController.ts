@@ -1,22 +1,22 @@
 import * as express from "express";
 import { aaCors, LogLevel, curryLogWithTimestamp } from "./firebase-utils";
-import * as twilio from "twilio";
+// import * as twilio from "twilio";
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as Slack from "./models/slack/CeceInteraction";
 import { IAgentRepository } from "./models/agents/IAgentRepository";
 import { FirebaseAgentRepository } from "./models/firebase/FirebaseAgentRepository";
-import { IClientOrganizationRepository } from "./models/clientOrganizations/IClientOrganizationRepository";
-import { FirebaseClientOrganizationRepository } from "./models/firebase/FirebaseClientOrganizationRepository";
+// import { IClientOrganizationRepository } from "./models/clientOrganizations/IClientOrganizationRepository";
+// import { FirebaseClientOrganizationRepository } from "./models/firebase/FirebaseClientOrganizationRepository";
 import { IPubSub } from "./models/pubsub/IPubSub";
 import { FirebasePubSub } from "./models/firebase/FirebasePubSub";
 import { ITimesheetRepository } from "./models/timesheets/ITimesheetRepository";
 import { FirebaseTimesheetRepository } from "./models/firebase/FirebaseTimesheetRepository";
-import { MessageInstance } from "twilio/lib/rest/api/v2010/account/message";
-import { ClientOrganization } from "./models/clientOrganizations/ClientOrganization";
+// import { MessageInstance } from "twilio/lib/rest/api/v2010/account/message";
+// import { ClientOrganization } from "./models/clientOrganizations/ClientOrganization";
 import { IIdentity } from "./models/common/IIdentity";
-import { ITextMessageRepository } from "./models/textMessages/ITextMessageRepository";
-import { FirebaseTextMessageRepository } from "./models/firebase/FirebaseTextMessageRepository";
+// import { ITextMessageRepository } from "./models/textMessages/ITextMessageRepository";
+// import { FirebaseTextMessageRepository } from "./models/firebase/FirebaseTextMessageRepository";
 import { OutgoingTextMessage } from "./models/textMessages/TextMessage";
 import axios from "axios";
 
@@ -33,42 +33,42 @@ function shouldIgnoreSlackMessage(evt: any) {
   return !!evt.subtype;
 }
 
-function sendMessageAsText(msgData: {
-  message: string;
-  orgPrefs: (ClientOrganization & IIdentity) | null;
-}): Promise<any> {
-  logWithTimestamp(LogLevel.Info, "Sending text message...");
+// function sendMessageAsText(msgData: {
+//   message: string;
+//   orgPrefs: (ClientOrganization & IIdentity) | null;
+// }): Promise<any> {
+//   logWithTimestamp(LogLevel.Info, "Sending text message...");
 
-  if (!msgData.orgPrefs) throw new Error("must include org prefs");
+//   if (!msgData.orgPrefs) throw new Error("must include org prefs");
 
-  const config = {
-    accountSid: functions.config().twilio.account_sid,
-    authToken: functions.config().twilio.auth_token,
-  };
+//   const config = {
+//     accountSid: functions.config().twilio.account_sid,
+//     authToken: functions.config().twilio.auth_token,
+//   };
 
-  const client = twilio(config.accountSid, config.authToken);
+//   const client = twilio(config.accountSid, config.authToken);
 
-  return client.api.messages
-    .create({
-      body: msgData.message,
-      to: "",
-      from: msgData.orgPrefs.cecePhoneNumber,
-    })
-    .then((msg) => {
-      logWithTimestamp(LogLevel.Info, "Text message sent.");
-      logWithTimestamp(LogLevel.Debug, "Message sent as SMS", msg);
+//   return client.api.messages
+//     .create({
+//       body: msgData.message,
+//       to: "",
+//       from: msgData.orgPrefs.cecePhoneNumber,
+//     })
+//     .then((msg) => {
+//       logWithTimestamp(LogLevel.Info, "Text message sent.");
+//       logWithTimestamp(LogLevel.Debug, "Message sent as SMS", msg);
 
-      const orgPrefs = msgData.orgPrefs;
+//       const orgPrefs = msgData.orgPrefs;
 
-      if (!orgPrefs) throw new Error("must include org prefs");
+//       if (!orgPrefs) throw new Error("must include org prefs");
 
-      return {
-        ...msg,
-        clientId: orgPrefs.id,
-        timestamp: new Date(Date.now()),
-      };
-    });
-}
+//       return {
+//         ...msg,
+//         clientId: orgPrefs.id,
+//         timestamp: new Date(Date.now()),
+//       };
+//     });
+// }
 
 function logInteractionToDatabase(payload: any): Promise<void> {
   logWithTimestamp(LogLevel.Info, "Saving interaction to database...");
@@ -233,20 +233,20 @@ function saveMessageToDatabase(eventWebhookRequest: any): Promise<any> {
     });
 }
 
-function determineSmsDestination(
-  eventData: any,
-): Promise<{ message: string; orgPrefs: (ClientOrganization & IIdentity) | null }> {
-  logWithTimestamp(LogLevel.Info, "Looking up organization preferences...");
-  const slackChannelId = eventData.channel;
-  const clientRepo = <IClientOrganizationRepository>new FirebaseClientOrganizationRepository();
+// function determineSmsDestination(
+//   eventData: any,
+// ): Promise<{ message: string; orgPrefs: (ClientOrganization & IIdentity) | null }> {
+//   logWithTimestamp(LogLevel.Info, "Looking up organization preferences...");
+//   const slackChannelId = eventData.channel;
+//   const clientRepo = <IClientOrganizationRepository>new FirebaseClientOrganizationRepository();
 
-  return clientRepo.lookupBySlackChannelId(slackChannelId).then((orgPrefs) => {
-    return {
-      message: eventData.text,
-      orgPrefs: orgPrefs,
-    };
-  });
-}
+//   return clientRepo.lookupBySlackChannelId(slackChannelId).then((orgPrefs) => {
+//     return {
+//       message: eventData.text,
+//       orgPrefs: orgPrefs,
+//     };
+//   });
+// }
 
 export const slackWebhooksHttpController = app;
 
@@ -291,43 +291,43 @@ function findEarliestLock(eventId: string): Promise<string | null> {
     });
 }
 
-function mapTwilioOutgoingSmsToOutgoingTextMessage(
-  twilioSms: { clientId: string; timestamp: Date } & MessageInstance,
-): OutgoingTextMessage {
-  return {
-    accountSid: twilioSms.accountSid,
-    apiVersion: twilioSms.apiVersion,
-    body: twilioSms.body,
-    dateCreated: twilioSms.dateCreated,
-    dateSent: twilioSms.dateSent,
-    dateUpdated: twilioSms.dateUpdated,
-    direction: twilioSms.direction,
-    errorCode: twilioSms.errorCode,
-    errorMessage: twilioSms.errorMessage,
-    from: twilioSms.from,
-    messagingServiceSid: twilioSms.messagingServiceSid,
-    numMedia: twilioSms.numMedia,
-    numSegments: twilioSms.numSegments,
-    price: parseFloat(twilioSms.price),
-    priceUnit: twilioSms.priceUnit,
-    sid: twilioSms.sid,
-    status: twilioSms.status,
-    to: twilioSms.to,
-    clientId: twilioSms.clientId,
-    timestamp: twilioSms.timestamp,
-  };
-}
+// function mapTwilioOutgoingSmsToOutgoingTextMessage(
+//   twilioSms: { clientId: string; timestamp: Date } & MessageInstance,
+// ): OutgoingTextMessage {
+//   return {
+//     accountSid: twilioSms.accountSid,
+//     apiVersion: twilioSms.apiVersion,
+//     body: twilioSms.body,
+//     dateCreated: twilioSms.dateCreated,
+//     dateSent: twilioSms.dateSent,
+//     dateUpdated: twilioSms.dateUpdated,
+//     direction: twilioSms.direction,
+//     errorCode: twilioSms.errorCode,
+//     errorMessage: twilioSms.errorMessage,
+//     from: twilioSms.from,
+//     messagingServiceSid: twilioSms.messagingServiceSid,
+//     numMedia: twilioSms.numMedia,
+//     numSegments: twilioSms.numSegments,
+//     price: parseFloat(twilioSms.price),
+//     priceUnit: twilioSms.priceUnit,
+//     sid: twilioSms.sid,
+//     status: twilioSms.status,
+//     to: twilioSms.to,
+//     clientId: twilioSms.clientId,
+//     timestamp: twilioSms.timestamp,
+//   };
+// }
 
-async function saveSmsToDatabase(
-  message: { clientId: string; timestamp: Date } & MessageInstance,
-): Promise<OutgoingTextMessage & IIdentity> {
-  const repo: ITextMessageRepository = new FirebaseTextMessageRepository();
+// async function saveSmsToDatabase(
+//   message: { clientId: string; timestamp: Date } & MessageInstance,
+// ): Promise<OutgoingTextMessage & IIdentity> {
+//   const repo: ITextMessageRepository = new FirebaseTextMessageRepository();
 
-  return repo.saveNewOutgoing(mapTwilioOutgoingSmsToOutgoingTextMessage(message)).then((record) => {
-    logWithTimestamp(LogLevel.Info, "Message saved to database...");
-    return record;
-  });
-}
+//   return repo.saveNewOutgoing(mapTwilioOutgoingSmsToOutgoingTextMessage(message)).then((record) => {
+//     logWithTimestamp(LogLevel.Info, "Message saved to database...");
+//     return record;
+//   });
+// }
 
 const recordSmsForBilling = async (msg: OutgoingTextMessage & IIdentity) => {
   const pubsub: IPubSub = new FirebasePubSub();
@@ -344,20 +344,23 @@ export const slackEventPubSubMessageHandler = async (message: any, ctx: any) => 
   const messageBody = message.json;
   logWithTimestamp(LogLevel.Debug, "Decoded message", messageBody);
 
+  // todoamk: if(!await doesMessageConcernUs(messageBody)) return;
+
   if (await wasMessageAlreadyHandled(messageBody.event_id)) {
     logWithTimestamp(LogLevel.Info, "It looks like this slack event was already handled");
     return;
   }
 
-  saveMessageToDatabase(messageBody)
-    .then(determineSmsDestination)
-    .then(sendMessageAsText)
-    .then(saveSmsToDatabase)
-    .then(recordSmsForBilling)
-    .catch(function (err) {
-      logWithTimestamp(LogLevel.Error, "Error sending message as SMS - " + err);
-      return;
-    });
+  try {
+    const eventData = await saveMessageToDatabase(messageBody);
+    // const eventData2 = await determineSmsDestination(eventData);
+    //const eventData3 = await sendMessageAsText(eventData2);
+    // const eventData4 = await saveSmsToDatabase(eventData3);
+    await recordSmsForBilling(eventData);
+  } catch (err) {
+    logWithTimestamp(LogLevel.Error, "Error sending message as SMS - " + err);
+    return;
+  }
 };
 
 export const slackInteractionPubSubMessageHandler = async (message: any, ctx: any) => {
