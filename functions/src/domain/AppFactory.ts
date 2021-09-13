@@ -1,4 +1,5 @@
 import { BeginFreeTrialCommandFactory } from "../commands/BeginFreeTrialCommand";
+import { FirebaseFreeTrialPhoneNumberRepository } from "../models/firebase/FirebaseFreeTrialPhoneNumberRepository";
 import { FirebaseSlackTeamRepository } from "../models/firebase/FirebaseSlackTeamRepository";
 import { CeceInteraction } from "../models/slack/CeceInteraction";
 import { SlackWorkspaceSdk } from "../models/slack/SlackWorkspaceSdk";
@@ -7,6 +8,8 @@ import { Application } from "./Application";
 export class AppFactory {
   static async createAppForSlackInteraction(interaction: CeceInteraction): Promise<Application> {
     const slackTeamRepo = new FirebaseSlackTeamRepository();
+    const phoneRepo = new FirebaseFreeTrialPhoneNumberRepository();
+
     const teamId = interaction.teamId;
 
     if (!teamId) {
@@ -29,7 +32,7 @@ export class AppFactory {
 
     const slack = new SlackWorkspaceSdk(team.accessToken);
 
-    const freeTrialCommand = BeginFreeTrialCommandFactory(userId, slack);
+    const freeTrialCommand = BeginFreeTrialCommandFactory(userId, team.client.id, slack, phoneRepo);
     return new Application(freeTrialCommand);
   }
 }
