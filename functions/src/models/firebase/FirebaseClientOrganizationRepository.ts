@@ -4,6 +4,23 @@ import * as admin from "firebase-admin";
 import { IIdentity } from "../common/IIdentity";
 
 export class FirebaseClientOrganizationRepository implements IClientOrganizationRepository {
+  public static makeClientFromDocumentData(id: string, data: any): ClientOrganization & IIdentity {
+    return {
+      id,
+      organizationName: data.organizationName,
+      cecePhoneNumber: data.cecePhoneNumber,
+      cecePhoneNumberTwilioSid: data.cecePhoneNumberTwilioSid,
+      slackChannelId: data.slackChannelId,
+      requestedAreaCode: data.requestedAreaCode,
+      primaryContactName: data.primaryContactName,
+      isAccountSuspended: data.isAccountSuspended,
+      minimumBalanceRequiredInTenths: data.minimumBalanceRequiredInTenths,
+      warningBalanceInTenths: data.warningBalanceInTenths,
+      wasWarnedAboutBalance: data.wasWarnedAboutBalance,
+      stripeCustomerId: data.stripeCustomerId,
+    };
+  }
+
   create(orgPrefs: ClientOrganization): Promise<ClientOrganization & IIdentity> {
     console.log("Saving new ClientOrganization...", orgPrefs);
     return admin
@@ -26,30 +43,7 @@ export class FirebaseClientOrganizationRepository implements IClientOrganization
       .then((doc) => {
         const data = doc.data();
         if (!data) return null;
-        return {
-          id: doc.id,
-          organizationName: data.organizationName,
-          cecePhoneNumber: data.cecePhoneNumber,
-          cecePhoneNumberTwilioSid: data.cecePhoneNumberTwilioSid,
-          ceceEmailAddress: data.ceceEmailAddress,
-          greetingStyle: data.greetingStyle,
-          slackChannelId: data.slackChannelId,
-          clientMobileNumber: data.clientMobileNumber,
-          requestedAreaCode: data.requestedAreaCode,
-          smsWebhookEndpointUrl: data.smsWebhookEndpointUrl,
-          primaryContactName: data.primaryContactName,
-          websiteUrl: data.websiteUrl,
-          isAccountSuspended: data.isAccountSuspended,
-          wasTextingRequested: data.wasTextingRequested,
-          wasVoiceRequested: data.wasVoiceRequested,
-          wasTextingManuallyApproved: data.wasTextingManuallyApproved,
-          wasVoiceManuallyApproved: data.wasVoiceManuallyApproved,
-          minimumBalanceRequiredInTenths: data.minimumBalanceRequiredInTenths,
-          warningBalanceInTenths: data.warningBalanceInTenths,
-          wasWarnedAboutBalance: data.wasWarnedAboutBalance,
-          balanceId: data.balanceId,
-          stripeCustomerId: data.stripeCustomerId,
-        };
+        return FirebaseClientOrganizationRepository.makeClientFromDocumentData(doc.id, data);
       });
   }
 

@@ -88,14 +88,45 @@ module.exports = function routes(config: any) {
 
     console.log("Opened conversation", conv);
 
-    const welcomeMessage = await slack.postMessage(
-      conv.channel.id,
-      "Hello, there! Thanks for trying TIFS Text It From Slack. Hang tight while I get you set up with a free trial.",
-    );
-
     const tosMessage = await slack.postMessage(
       conv.channel.id,
-      "Once you have read our Terms of Service, click 'Accept' and I will get things started.",
+
+      (message) => {
+        message.text = "Please accept the Terms and Conditions to begin your free trial."; // fallback for notifications
+
+        message.blocks = [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: 'Hello, there! Thanks for trying TIFS Text It From Slack. By clicking "Accept" below, you are acknowledging that you have reviewed and agree to our Terms of Service, End User License Agreement, and Privacy Policy. If you do that, I can get your free trial started.',
+            },
+          },
+          {
+            type: "actions",
+            block_id: "actionblock789",
+            elements: [
+              {
+                type: "button",
+                text: {
+                  type: "plain_text",
+                  text: "Accept",
+                },
+                style: "primary",
+                value: "accept_tos",
+              },
+              {
+                type: "button",
+                text: {
+                  type: "plain_text",
+                  text: "Uninstall",
+                },
+                value: "reject_tos",
+              },
+            ],
+          },
+        ];
+      },
     );
 
     const pubsub = new PubSub();
@@ -104,7 +135,7 @@ module.exports = function routes(config: any) {
 
     console.log("publish response", publishResponse);
 
-    return res.json({ client, team, welcomeMessage, tosMessage });
+    return res.json({ client, team, tosMessage });
   });
 
   app.get("/direct", c.directInstall.bind(c));

@@ -19,8 +19,8 @@ import { IIdentity } from "./models/common/IIdentity";
 // import { FirebaseTextMessageRepository } from "./models/firebase/FirebaseTextMessageRepository";
 import { OutgoingTextMessage } from "./models/textMessages/TextMessage";
 import axios from "axios";
-
-const PubSub = require("@google-cloud/pubsub");
+import { PubSub } from "@google-cloud/pubsub";
+import { AppFactory } from "./domain/AppFactory";
 
 const logWithTimestamp = curryLogWithTimestamp(LogLevel.Debug);
 
@@ -92,7 +92,6 @@ app.post("/interactives-webhook", async (req: express.Request, res: express.Resp
 
   pubsub
     .topic("slack-interaction")
-    .publisher()
     .publish(dataBuffer)
     .then((messageId: any) => {
       logWithTimestamp(LogLevel.Info, `SlackInteractionMessage ${messageId} published.`);
@@ -376,6 +375,15 @@ export const slackInteractionPubSubMessageHandler = async (message: any, ctx: an
 
     const interaction = new Slack.CeceInteraction(payload);
     logWithTimestamp(LogLevel.Debug, "Created interaction object", interaction);
+    const app = await AppFactory.createAppForSlackInteraction(interaction);
+
+    switch (interaction.type) {
+      case Slack.InteractionType.ACCEPT_TOS:
+        return await app.beginFreeTrial();
+      default:
+        logWithTimestamp(LogLevel.Warn, "Unhandled interation", interaction);
+        return;
+    }
   } catch (err: any) {
     logWithTimestamp(LogLevel.Error, err);
   }

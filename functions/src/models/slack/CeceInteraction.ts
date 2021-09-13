@@ -1,4 +1,7 @@
-import { IncomingCallInteraction } from "./IncomingCallInteraction";
+export enum InteractionType {
+  UNKNOWN,
+  ACCEPT_TOS,
+}
 
 export class CeceInteraction {
   private interactionData: any;
@@ -7,11 +10,16 @@ export class CeceInteraction {
     this.interactionData = interactionData;
   }
 
-  public isIncomingPhoneCallInteraction() {
-    return /incomingcall_/.test(this.interactionData.callback_id);
+  get type(): InteractionType {
+    if (this.interactionData?.actions[0]?.value === "accept_tos") return InteractionType.ACCEPT_TOS;
+    return InteractionType.UNKNOWN;
   }
 
-  public createIncomingCallInteraction(): IncomingCallInteraction {
-    return new IncomingCallInteraction(this.interactionData);
+  get teamId(): string {
+    return this.interactionData?.team?.id;
+  }
+
+  get userId(): string {
+    return this.interactionData?.user?.id;
   }
 }
