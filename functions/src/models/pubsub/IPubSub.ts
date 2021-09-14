@@ -17,7 +17,8 @@ export type MessageTypeTag =
   | "suspend-account"
   | "reinstate-account"
   | "funds-added"
-  | "begin-free-trial-slack";
+  | "begin-free-trial-slack"
+  | "add-sms-subscriber";
 
 export interface IPubSub {
   triggerMessage(tag: MessageTypeTag, payload: any): Promise<IPubSubMessageInfo>;

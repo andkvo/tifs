@@ -21,6 +21,7 @@ import { OutgoingTextMessage } from "./models/textMessages/TextMessage";
 import axios from "axios";
 import { PubSub } from "@google-cloud/pubsub";
 import { AppFactory } from "./domain/AppFactory";
+import { MiddlewareFactory as VerifySlackRequestFactory } from "./middleware/VerifySlackRequest";
 
 const logWithTimestamp = curryLogWithTimestamp(LogLevel.Debug);
 
@@ -159,29 +160,31 @@ app.post("/events-webhook", async (req: express.Request, res: express.Response) 
   }
 });
 
-app.post("/slash-commands", async (req: express.Request, res: express.Response) => {
-  logWithTimestamp(LogLevel.Debug, "Received request", req.body);
+app.post(
+  "/slash-commands",
+  VerifySlackRequestFactory(functions.config().slack.signing_secret, () => new Date().valueOf()),
+  async (req: express.Request, res: express.Response) => {
+    logWithTimestamp(LogLevel.Debug, "Received request", req.body);
 
-  const payload = req.body;
+    const payload = req.body;
 
-  if (payload.token !== "6fcjE4qGYjuDmvcknIZzFCfe") {
-    res.sendStatus(403);
-    res.end("Unauthorized");
-  }
+    if (payload.token !== functions.config().slack.verification_token) {
+      return res.sendStatus(403);
+    }
 
-  if (payload.command === "/cece-log-time") {
     const pubsub: IPubSub = new FirebasePubSub();
 
-    pubsub
-      .triggerMessage("slack-slash", payload)
-      .then(() => {
-        res.end("Attempting to log time...");
-      })
-      .catch((err) => logWithTimestamp(LogLevel.Error, err));
-  } else {
-    res.end("Unrecognized command");
-  }
-});
+    switch (payload.command) {
+      case "/subscribe":
+        await pubsub.triggerMessage("add-sms-subscriber", payload);
+        return res.send("Adding subscriber...");
+      default:
+        break;
+    }
+
+    return res.sendStatus(200);
+  },
+);
 
 export const slackSlashPubSubMessageHandler = async (message: any, ctx: any) => {
   logWithTimestamp(LogLevel.Debug, "Received SlackSlashMessage", message);
