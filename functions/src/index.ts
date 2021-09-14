@@ -19,6 +19,9 @@ import {
 import { suspendClientAccountPubSubMessageHandler } from "./suspendClientAccount";
 import { reinstateClientAccountPubSubMessageHandler } from "./reinstateClientAccount";
 import pubSubHandlerFactory from "./common/pubSubHandlerFactory";
+import slackApp from "./slackApp";
+import { FirebaseClientSmsSubscriberRepository } from "./models/firebase/FirebaseSmsSubscriberRepository";
+import { FirebaseSlackTeamRepository } from "./models/firebase/FirebaseSlackTeamRepository";
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -83,4 +86,8 @@ export const reinstateClientAccountHandler = handlePubSubTopic(
 
 export const fundsAddedHandler = handlePubSubTopic("funds-added", fundsAddedBillingPubSubHandler);
 
-export const { slackAppInstallation, beginFreeTrialSlack } = require("./slackApp")(functions);
+export const { slackAppInstallation, beginFreeTrialSlack, addSmsSubscriber } = slackApp(
+  functions,
+  new FirebaseSlackTeamRepository(),
+  (clientId) => new FirebaseClientSmsSubscriberRepository(clientId),
+);
