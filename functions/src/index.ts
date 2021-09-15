@@ -22,6 +22,7 @@ import pubSubHandlerFactory from "./common/pubSubHandlerFactory";
 import slackApp from "./slackApp";
 import { FirebaseClientSmsSubscriberRepository } from "./models/firebase/FirebaseSmsSubscriberRepository";
 import { FirebaseSlackTeamRepository } from "./models/firebase/FirebaseSlackTeamRepository";
+import { FirebasePubSub } from "./models/firebase/FirebasePubSub";
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -29,7 +30,7 @@ import { FirebaseSlackTeamRepository } from "./models/firebase/FirebaseSlackTeam
 admin.initializeApp();
 
 // something the logs told me to add /shrug
-const settings = { timestampsInSnapshots: true };
+const settings = { timestampsInSnapshots: true, ignoreUndefinedProperties: true };
 admin.firestore().settings(settings);
 
 export const helloWorld = functions.https.onRequest((request, response) => {
@@ -86,8 +87,9 @@ export const reinstateClientAccountHandler = handlePubSubTopic(
 
 export const fundsAddedHandler = handlePubSubTopic("funds-added", fundsAddedBillingPubSubHandler);
 
-export const { slackAppInstallation, beginFreeTrialSlack, addSmsSubscriber } = slackApp(
+export const { slackAppInstallation, beginFreeTrialSlack, addSmsSubscriber, firstSubscriber } = slackApp(
   functions,
   new FirebaseSlackTeamRepository(),
   (clientId) => new FirebaseClientSmsSubscriberRepository(clientId),
+  new FirebasePubSub(),
 );

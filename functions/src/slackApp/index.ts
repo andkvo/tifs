@@ -2,13 +2,16 @@ import axios from "axios";
 import { Message } from "firebase-functions/v1/pubsub";
 import pubSubHandlerFactory from "../common/pubSubHandlerFactory";
 import { FirebaseFreeTrialPhoneNumberRepository } from "../models/firebase/FirebaseFreeTrialPhoneNumberRepository";
+import { IPubSub } from "../models/pubsub/IPubSub";
 import { ISlackTeamRepository } from "../models/slack/ISlackTeamRepository";
+import { SlackWorkspaceSdk } from "../models/slack/SlackWorkspaceSdk";
 import { IClientSmsSubscriberRepository } from "../models/subscribers/IClientSmsSubscriberRepository";
 
 export default function (
   functions: any,
   slackTeamRepo: ISlackTeamRepository,
-  textSubscriberRepositryFactory: (clientId: string) => IClientSmsSubscriberRepository,
+  textSubscriberRepositoryFactory: (clientId: string) => IClientSmsSubscriberRepository,
+  pubsub: IPubSub,
 ) {
   const handlePubSubTopic = pubSubHandlerFactory(functions);
 
@@ -81,12 +84,21 @@ export default function (
 
       if (!clientId) throw new Error("Could not determine client for this Slack team");
 
-      const subscriberRepo = textSubscriberRepositryFactory(clientId);
+      const subscriberRepo = textSubscriberRepositoryFactory(clientId);
       await subscriberRepo.create({ phoneNumber: "+1" + phoneNumber, firstName, lastName });
+      const subscriberCount = (await subscriberRepo.find()).length;
+
+      let responseText = `OK! I've added ${phoneNumber} as a subscriber!`;
+
+      if (subscriberCount > 1) {
+        responseText += " To see a list of your subscribers, type `/subscribers`.";
+      } else {
+        await pubsub.triggerMessage("first-subscriber-added", message.json);
+      }
 
       axios.post(responseUrl, {
         replace_original: "true",
-        text: `OK! I've added ${phoneNumber} as a subscriber!`,
+        text: responseText,
       });
     } catch (err) {
       console.error("An unexpected error occurred when adding a subscriber.", { err });
@@ -98,5 +110,49 @@ export default function (
     }
   });
 
-  return { slackAppInstallation, beginFreeTrialSlack, addSmsSubscriber };
+  const firstSubscriber = handlePubSubTopic("first-subscriber-added", async (message: Message, context: any) => {
+    console.debug("Message", message);
+    console.debug("Context", context);
+    console.debug("decoded message", message.json);
+
+    const { team_id: teamId, text: commandText, response_url: responseUrl } = message.json;
+
+    console.debug("important stuff", { teamId, commandText, responseUrl });
+
+    const team = await slackTeamRepo.get(teamId);
+
+    if (!team) throw new Error("Team could not be located from message data");
+
+    const slack = new SlackWorkspaceSdk(team.accessToken);
+    const conv = await slack.openConversation(team.authedUserId);
+
+    const firstSubscriberMessage = await slack.postMessage(
+      conv.channel.id,
+
+      (message) => {
+        message.text = ":tada: You added your first subscriber! Let's keep going!"; // fallback for notifications
+
+        message.blocks = [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: ":tada: You've added your first subscriber. (Hopefully it's your own number). Now let's send a text.",
+            },
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: "Type `/broadcast blah blah blah this is a text message blah` to send your message",
+            },
+          },
+        ];
+      },
+    );
+
+    console.debug("Finished handling first subscriber", firstSubscriberMessage);
+  });
+
+  return { slackAppInstallation, beginFreeTrialSlack, addSmsSubscriber, firstSubscriber };
 }

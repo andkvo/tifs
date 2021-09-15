@@ -22,4 +22,20 @@ export class FirebaseClientSmsSubscriberRepository implements IClientSmsSubscrib
         return saved;
       });
   }
+  async find(): Promise<Array<ISmsSubscriber & IIdentity>> {
+    const col = await admin
+      .firestore()
+      .collection(`organizationPreferences/${this.#clientId}/subscribers`)
+      .get();
+
+    const ret: Array<ISmsSubscriber & IIdentity> = [];
+
+    col.forEach((d) => {
+      const id = d.id;
+      const { firstName, lastName, phoneNumber } = d.data();
+      ret.push({ id, firstName, lastName, phoneNumber });
+    });
+
+    return ret;
+  }
 }
