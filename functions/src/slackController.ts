@@ -178,6 +178,9 @@ app.post(
       case "/subscribe":
         await pubsub.triggerMessage("add-sms-subscriber", payload);
         return res.send("Adding subscriber...");
+      case "/broadcast":
+        await pubsub.triggerMessage("broadcast-sms-from-slack", payload);
+        return res.send("Preparing message...");
       default:
         break;
     }

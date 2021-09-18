@@ -33,7 +33,7 @@ export class FirebaseClientSmsSubscriberRepository implements IClientSmsSubscrib
     col.forEach((d) => {
       const id = d.id;
       const { firstName, lastName, phoneNumber } = d.data();
-      ret.push({ id, firstName, lastName, phoneNumber });
+      ret.push({ id, firstName, lastName, phoneNumber, media: ["sms"] });
     });
 
     return ret;

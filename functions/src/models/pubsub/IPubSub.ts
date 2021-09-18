@@ -7,19 +7,17 @@ export type MessageTypeTag =
   | "slack-event"
   | "slack-interaction"
   | "slack-slash"
-  | "twilio-incoming-call"
   | "provision-office"
   | "daily-tick"
-  | "recording-complete"
-  | "transcription-complete"
-  | "phone-call-complete"
   | "incoming-sms"
   | "suspend-account"
   | "reinstate-account"
   | "funds-added"
   | "begin-free-trial-slack"
   | "add-sms-subscriber"
-  | "first-subscriber-added";
+  | "first-subscriber-added"
+  | "broadcast-sms-from-slack"
+  | "first-sms-sent";
 
 export interface IPubSub {
   triggerMessage(tag: MessageTypeTag, payload: any): Promise<IPubSubMessageInfo>;

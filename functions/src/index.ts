@@ -23,6 +23,8 @@ import slackApp from "./slackApp";
 import { FirebaseClientSmsSubscriberRepository } from "./models/firebase/FirebaseSmsSubscriberRepository";
 import { FirebaseSlackTeamRepository } from "./models/firebase/FirebaseSlackTeamRepository";
 import { FirebasePubSub } from "./models/firebase/FirebasePubSub";
+import { FirebaseClientOrganizationRepository } from "./models/firebase/FirebaseClientOrganizationRepository";
+import { FirebaseOutgoingMessageQueue } from "./models/firebase/FirebaseOutgoingMessageQueue";
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -87,9 +89,11 @@ export const reinstateClientAccountHandler = handlePubSubTopic(
 
 export const fundsAddedHandler = handlePubSubTopic("funds-added", fundsAddedBillingPubSubHandler);
 
-export const { slackAppInstallation, beginFreeTrialSlack, addSmsSubscriber, firstSubscriber } = slackApp(
+export const { slackAppInstallation, beginFreeTrialSlack, addSmsSubscriber, firstSubscriber, broadcastSms } = slackApp(
   functions,
   new FirebaseSlackTeamRepository(),
   (clientId) => new FirebaseClientSmsSubscriberRepository(clientId),
   new FirebasePubSub(),
+  (clientId: string) => new FirebaseOutgoingMessageQueue(clientId),
+  new FirebaseClientOrganizationRepository(),
 );

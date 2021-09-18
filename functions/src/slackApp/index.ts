@@ -1,17 +1,23 @@
 import axios from "axios";
 import { Message } from "firebase-functions/v1/pubsub";
 import pubSubHandlerFactory from "../common/pubSubHandlerFactory";
+import { IClientOrganizationRepository } from "../models/clientOrganizations/IClientOrganizationRepository";
+import { FormatsCurrency } from "../models/common/FormatsCurrency";
 import { FirebaseFreeTrialPhoneNumberRepository } from "../models/firebase/FirebaseFreeTrialPhoneNumberRepository";
 import { IPubSub } from "../models/pubsub/IPubSub";
 import { ISlackTeamRepository } from "../models/slack/ISlackTeamRepository";
 import { SlackWorkspaceSdk } from "../models/slack/SlackWorkspaceSdk";
 import { IClientSmsSubscriberRepository } from "../models/subscribers/IClientSmsSubscriberRepository";
+import { IOutgoingMessageQueue } from "../models/textMessages/IOutgoingMessageQueue";
+import { QueuedBroadcast } from "../models/textMessages/QueuedBroadcast";
 
 export default function (
   functions: any,
   slackTeamRepo: ISlackTeamRepository,
   textSubscriberRepositoryFactory: (clientId: string) => IClientSmsSubscriberRepository,
   pubsub: IPubSub,
+  outgoingMessageQueueFactory: (clientId: string) => IOutgoingMessageQueue,
+  clientRepository: IClientOrganizationRepository,
 ) {
   const handlePubSubTopic = pubSubHandlerFactory(functions);
 
@@ -85,7 +91,7 @@ export default function (
       if (!clientId) throw new Error("Could not determine client for this Slack team");
 
       const subscriberRepo = textSubscriberRepositoryFactory(clientId);
-      await subscriberRepo.create({ phoneNumber: "+1" + phoneNumber, firstName, lastName });
+      await subscriberRepo.create({ phoneNumber: "+1" + phoneNumber, firstName, lastName, media: ["sms"] });
       const subscriberCount = (await subscriberRepo.find()).length;
 
       let responseText = `OK! I've added ${phoneNumber} as a subscriber!`;
@@ -154,5 +160,129 @@ export default function (
     console.debug("Finished handling first subscriber", firstSubscriberMessage);
   });
 
-  return { slackAppInstallation, beginFreeTrialSlack, addSmsSubscriber, firstSubscriber };
+  const broadcastSms = handlePubSubTopic("broadcast-sms-from-slack", async (message: Message, context: any) => {
+    console.debug("Message", message);
+    console.debug("Context", context);
+    console.debug("decoded message", message.json);
+
+    const { team_id: teamId, text: commandText, response_url: responseUrl } = message.json;
+
+    console.debug("important stuff", { teamId, commandText, responseUrl });
+
+    if (commandText.length > 3000) {
+      axios.post(responseUrl, {
+        replace_original: "true",
+        text: `Your message must be smaller than 3000 characters.`,
+      });
+      return;
+    }
+
+    const slackTeam = await slackTeamRepo.get(teamId);
+    const clientId = slackTeam?.client?.id;
+
+    if (!clientId) throw new Error("Could not determine client for this Slack team");
+
+    const client = await clientRepository.find(clientId);
+
+    if (!client) throw new Error("Client not found");
+
+    const subscriberRepo = textSubscriberRepositoryFactory(clientId);
+    const subscribers = await subscriberRepo.find();
+
+    const outgoingMessageQueueRepo = outgoingMessageQueueFactory(clientId);
+
+    const broadcast = new QueuedBroadcast(client, subscribers, commandText);
+    const messageId = await outgoingMessageQueueRepo.add(broadcast);
+
+    axios.post(responseUrl, {
+      replace_original: "true",
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `You are about to send the following message to ${subscribers.length} subscriber${
+              subscribers.length == 1 ? "" : "s"
+            } for a cost of ${new FormatsCurrency().formatTenths(broadcast.cost)}:`,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "```" + commandText + "```",
+          },
+        },
+        {
+          type: "actions",
+          block_id: "actionblock789",
+          elements: [
+            {
+              type: "button",
+              text: {
+                type: "plain_text",
+                text: "Send",
+              },
+              style: "primary",
+              value: "send-broadcast-" + messageId,
+            },
+            {
+              type: "button",
+              text: {
+                type: "plain_text",
+                text: "Cancel",
+              },
+              value: "cancel-broadcast-" + messageId,
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  const firstSms = handlePubSubTopic("first-sms-sent", async (message: Message, context: any) => {
+    console.debug("Message", message);
+    console.debug("Context", context);
+    console.debug("decoded message", message.json);
+
+    const { team_id: teamId, text: commandText, response_url: responseUrl } = message.json;
+
+    console.debug("important stuff", { teamId, commandText, responseUrl });
+
+    const team = await slackTeamRepo.get(teamId);
+
+    if (!team) throw new Error("Team could not be located from message data");
+
+    const slack = new SlackWorkspaceSdk(team.accessToken);
+    const conv = await slack.openConversation(team.authedUserId);
+
+    const firstTextMessage = await slack.postMessage(
+      conv.channel.id,
+
+      (message) => {
+        message.text = ":fireworks: You sent a text! Check your phone and send a reply."; // fallback for notifications
+
+        message.blocks = [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: ":fireworks: You sent a text to all of your subscribers!",
+            },
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: "Grab your mobile phone and reply to see how to interact with individual recipients.",
+            },
+          },
+        ];
+      },
+    );
+
+    console.debug("Finished handling first message", firstTextMessage);
+  });
+
+  return { slackAppInstallation, beginFreeTrialSlack, addSmsSubscriber, firstSubscriber, broadcastSms, firstSms };
 }

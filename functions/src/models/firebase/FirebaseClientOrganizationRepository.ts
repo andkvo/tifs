@@ -18,6 +18,7 @@ export class FirebaseClientOrganizationRepository implements IClientOrganization
       warningBalanceInTenths: data.warningBalanceInTenths,
       wasWarnedAboutBalance: data.wasWarnedAboutBalance,
       stripeCustomerId: data.stripeCustomerId,
+      smsCost: data.smsCost,
     };
   }
 
