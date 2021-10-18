@@ -9,13 +9,13 @@ import { Message } from "firebase-functions/lib/providers/pubsub";
 import { SendQuickMessagesToClient } from "./models/domain/SendQuickMessagesToClient";
 import { FormatsCurrency } from "./models/common/FormatsCurrency";
 import { FirebaseAccountingRepository } from "./models/firebase/FirebaseAccountingRepository";
-import { IAccountingRepository } from "./models/accounting/IAccountingRepository";
 import { ClientOrganization } from "./models/clientOrganizations/ClientOrganization";
 import { IIdentity } from "./models/common/IIdentity";
 import * as Joi from "joi";
 import { verifyObjectHasSchemaAndCast } from "./util/pubsubutil";
 import { FirebaseApplicationPreferencesRepository } from "./models/firebase/FirebaseApplicationPreferencesRepository";
 import { IApplicationPreferences } from "./models/application/IApplicationPreferences";
+import { IClientAccountingRepository } from "./models/accounting/IClientAccountingRepository";
 
 type EventContext = functions.EventContext;
 
@@ -61,8 +61,8 @@ async function reinstateClientAccountDecodedMessageHandler(
   if (orgPrefs) {
     logWithTimestamp(LogLevel.Debug, "Organization found", orgPrefs);
 
-    const accountingRepo: IAccountingRepository = new FirebaseAccountingRepository();
-    const clientBalance = await accountingRepo.getClientAccountBalance(orgPrefs.id);
+    const accountingRepo: IClientAccountingRepository = new FirebaseAccountingRepository(orgPrefs.id);
+    const clientBalance = await accountingRepo.getClientAccountBalance();
 
     if (clientBalance > orgPrefs.minimumBalanceRequiredInTenths) {
       await reinstateAccount(appPrefs, orgPrefs, clientRepo);

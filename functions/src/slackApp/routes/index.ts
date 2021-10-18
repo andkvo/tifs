@@ -66,6 +66,7 @@ module.exports = function routes(config: any) {
       cecePhoneNumber: "",
       cecePhoneNumberTwilioSid: "",
       slackChannelId: "",
+      smsCostInTenths: 100,
     });
 
     console.log("Created client", client);

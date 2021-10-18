@@ -11,11 +11,7 @@ import {
 import firebaseInfo from "./firebaseInfo";
 import { dailyTickPubSubMessageHandler } from "./cron";
 import { manageClientsHttpController } from "./manageClients";
-import {
-  recordInboundSmsBillingPubSubMessageHandler,
-  recordOutboundSmsBillingPubSubMessageHandler,
-  fundsAddedBillingPubSubHandler,
-} from "./billing";
+import { recordInboundSmsBillingPubSubMessageHandler, fundsAddedBillingPubSubHandler } from "./billing";
 import { suspendClientAccountPubSubMessageHandler } from "./suspendClientAccount";
 import { reinstateClientAccountPubSubMessageHandler } from "./reinstateClientAccount";
 import pubSubHandlerFactory from "./common/pubSubHandlerFactory";
@@ -72,10 +68,10 @@ export const smsBillingHandler = handlePubSubTopic(
   recordInboundSmsBillingPubSubMessageHandler,
 );
 
-export const smsOutgoingBillingHandler = handlePubSubTopic(
-  "accounting-record-outbound-sms",
-  recordOutboundSmsBillingPubSubMessageHandler,
-);
+// export const smsOutgoingBillingHandler = handlePubSubTopic(
+//   "accounting-record-outbound-sms",
+//   recordOutboundSmsBillingPubSubMessageHandler,
+// );
 
 export const suspendClientAccountHandler = handlePubSubTopic(
   "suspend-account",

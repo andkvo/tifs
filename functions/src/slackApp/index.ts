@@ -192,51 +192,54 @@ export default function (
     const outgoingMessageQueueRepo = outgoingMessageQueueFactory(clientId);
 
     const broadcast = new QueuedBroadcast(client, subscribers, commandText);
-    const messageId = await outgoingMessageQueueRepo.add(broadcast);
+    const queuedBroadcast = await outgoingMessageQueueRepo.add(broadcast);
+    const blocks = [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `You are about to send the following message to ${subscribers.length} subscriber${
+            subscribers.length == 1 ? "" : "s"
+          } for a cost of ${new FormatsCurrency().formatTenths(broadcast.totalCost)}:`,
+        },
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "```" + commandText + "```",
+        },
+      },
+      {
+        type: "actions",
+        block_id: "actionblock789",
+        elements: [
+          {
+            type: "button",
+            text: {
+              type: "plain_text",
+              text: "Send",
+            },
+            style: "primary",
+            value: "send_broadcast_" + queuedBroadcast.id,
+          },
+          {
+            type: "button",
+            text: {
+              type: "plain_text",
+              text: "Cancel",
+            },
+            value: "cancel_broadcast_" + queuedBroadcast.id,
+          },
+        ],
+      },
+    ];
+
+    console.log("Sending Response to Slack", JSON.stringify(blocks, null, 2));
 
     axios.post(responseUrl, {
       replace_original: "true",
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `You are about to send the following message to ${subscribers.length} subscriber${
-              subscribers.length == 1 ? "" : "s"
-            } for a cost of ${new FormatsCurrency().formatTenths(broadcast.cost)}:`,
-          },
-        },
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: "```" + commandText + "```",
-          },
-        },
-        {
-          type: "actions",
-          block_id: "actionblock789",
-          elements: [
-            {
-              type: "button",
-              text: {
-                type: "plain_text",
-                text: "Send",
-              },
-              style: "primary",
-              value: "send-broadcast-" + messageId,
-            },
-            {
-              type: "button",
-              text: {
-                type: "plain_text",
-                text: "Cancel",
-              },
-              value: "cancel-broadcast-" + messageId,
-            },
-          ],
-        },
-      ],
+      blocks,
     });
   });
 

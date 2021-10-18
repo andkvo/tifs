@@ -10,5 +10,5 @@ export interface ClientOrganization {
   wasWarnedAboutBalance: boolean;
   stripeCustomerId: string;
   slackChannelId: string;
-  smsCost: number;
+  smsCostInTenths: number;
 }

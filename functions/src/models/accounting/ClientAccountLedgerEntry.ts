@@ -1,17 +1,7 @@
 export type CreditType = "Cash" | "Coupon" | "Rollup";
 export type CreditSource = "PayPal" | "Stripe" | "Cash";
 export type DebitSource = "Twilio" | "Labor";
-export type DebitType =
-  | "IncomingSMS"
-  | "OutgoingSMS"
-  | "IncomingEmail"
-  | "OutgoingEmail"
-  | "PhoneLine"
-  | "RecordedTranscribedCall"
-  | "RecordedCall"
-  | "Call"
-  | "Labor"
-  | "SubscriptionFee";
+export type DebitType = "IncomingSMS" | "OutgoingSMS" | "PhoneLine" | "SubscriptionFee";
 
 export interface ClientAccountLedgerEntry {
   clientId: string;
@@ -52,29 +42,6 @@ send text message
   newBalance: 499.99,
   debitType: 'TwilioSmsSent',
   traceKey: 'sms-db-id'
-}
-
-call recorded
-
-{
-  clientId: 'client-receiving-call',
-  date: date,
-  value: -1.25,
-  newBalance: 498.74,
-  debitType: 'TwilioPhoneCallWithRecordingAndTranscription',
-  traceKey: 'phone-call-db-id'
-}
-
-
-call recorded
-
-{
-  clientId: 'client-getting-labor',
-  date: date,
-  value: -300,
-  newBalance: 198.74,
-  debitType: 'Labor',
-  traceKey: 'phone-call-db-id'
 }
 
 */

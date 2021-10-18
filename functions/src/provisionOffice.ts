@@ -56,7 +56,7 @@ app.post("/create", async (req, res) => {
       warningBalanceInTenths: 7000,
       wasWarnedAboutBalance: false,
       stripeCustomerId: "",
-      smsCost: 30000,
+      smsCostInTenths: 30000,
     })
     .then((orgPrefs) => {
       logWithTimestamp(LogLevel.Info, "Publishing ProvisionOfficeMessage...");

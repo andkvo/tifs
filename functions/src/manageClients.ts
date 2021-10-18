@@ -2,12 +2,12 @@ import express = require("express");
 import { FirebaseClientOrganizationRepository } from "./models/firebase/FirebaseClientOrganizationRepository";
 import { IClientOrganizationRepository } from "./models/clientOrganizations/IClientOrganizationRepository";
 import { FirebaseAccountingRepository } from "./models/firebase/FirebaseAccountingRepository";
-import { IAccountingRepository } from "./models/accounting/IAccountingRepository";
 import * as moment from "moment";
 import { LogLevel, curryLogWithTimestamp } from "./firebase-utils";
 import * as _ from "lodash";
 import { DebitType } from "./models/accounting/ClientAccountLedgerEntry";
 import { FormatsCurrency } from "./models/common/FormatsCurrency";
+import { IClientAccountingRepository } from "./models/accounting/IClientAccountingRepository";
 
 const logWithTimestamp = curryLogWithTimestamp(LogLevel.Debug);
 
@@ -47,29 +47,19 @@ app.get("/billing-report", async (req, res) => {
     return formatter.formatTenths(input / 1000);
   };
 
-  const accountingApi: IAccountingRepository = new FirebaseAccountingRepository();
+  const accountingApi: IClientAccountingRepository = new FirebaseAccountingRepository(clientId);
 
   minimumBalance = await getMinimumBalanceForClient(clientId);
-  startingBalance = await accountingApi.getClientAccountBalance(clientId, startDate);
-  const ledgerEntries = await accountingApi.getLedgerEntriesForClient(clientId, startDate);
+  startingBalance = await accountingApi.getClientAccountBalance(startDate);
+  const ledgerEntries = await accountingApi.getLedgerEntriesForClient(startDate);
 
   logWithTimestamp(LogLevel.Debug, "Found ledger entries", ledgerEntries);
 
   const incomingSmsKey: DebitType = "IncomingSMS";
   const outgoingSmsKey: DebitType = "OutgoingSMS";
-  const laborKey: DebitType = "Labor";
-  const incomingEmailKey: DebitType = "IncomingEmail";
-  const outgoingEmailKey: DebitType = "OutgoingEmail";
-  const unrecordedPhoneKey: DebitType = "Call";
-  const recordedPhoneKey: DebitType = "RecordedCall";
-  const transcribedPhoneKey: DebitType = "RecordedTranscribedCall";
 
   const counts = _.countBy(ledgerEntries, (e) => {
     switch (e.debitType) {
-      case incomingEmailKey:
-        return incomingEmailKey;
-      case outgoingEmailKey:
-        return outgoingEmailKey;
       default:
         return "other";
     }
@@ -79,15 +69,8 @@ app.get("/billing-report", async (req, res) => {
     .map((e) => e.totalValueInTenths)
     .reduce((sum, v) => sum + v, 0);
 
-  laborExpenses = _.filter(ledgerEntries, (e) => e.debitSource === laborKey)
-    .map((e) => e.totalValueInTenths)
-    .reduce((sum, v) => sum + v, 0);
-
   incomingTextMessageCount = counts[incomingSmsKey] || 0;
   outgoingTextMessageCount = counts[outgoingSmsKey] || 0;
-  incomingEmailCount = counts[incomingEmailKey] || 0;
-  outgoingEmailCount = counts[outgoingEmailKey] || 0;
-
   incomingTextMessageCount = _.filter(ledgerEntries, (e) => e.debitType === incomingSmsKey)
     .map((e) => e.quantity)
     .reduce((sum, v) => sum + v, 0);
@@ -108,37 +91,7 @@ app.get("/billing-report", async (req, res) => {
       .reduce((sum, v) => sum + v, 0),
   );
 
-  unrecordedPhoneCallMinutes = _.filter(ledgerEntries, (e) => e.debitType === unrecordedPhoneKey)
-    .map((e) => e.quantity)
-    .reduce((sum, v) => sum + v, 0);
-
-  unrecordedPhoneCallCost = Math.abs(
-    _.filter(ledgerEntries, (e) => e.debitType === unrecordedPhoneKey)
-      .map((e) => e.totalValueInTenths)
-      .reduce((sum, v) => sum + v, 0),
-  );
-
-  recordedPhoneCallMinutes = _.filter(ledgerEntries, (e) => e.debitType === recordedPhoneKey)
-    .map((e) => e.quantity)
-    .reduce((sum, v) => sum + v, 0);
-
-  recordedPhoneCallCost = Math.abs(
-    _.filter(ledgerEntries, (e) => e.debitType === recordedPhoneKey)
-      .map((e) => e.totalValueInTenths)
-      .reduce((sum, v) => sum + v, 0),
-  );
-
-  phoneCallTranscriptionMinutes = _.filter(ledgerEntries, (e) => e.debitType === transcribedPhoneKey)
-    .map((e) => e.quantity)
-    .reduce((sum, v) => sum + v, 0);
-
-  transcribedPhoneCallCost = Math.abs(
-    _.filter(ledgerEntries, (e) => e.debitType === transcribedPhoneKey)
-      .map((e) => e.totalValueInTenths)
-      .reduce((sum, v) => sum + v, 0),
-  );
-
-  endingBalance = await accountingApi.getClientAccountBalance(clientId);
+  endingBalance = await accountingApi.getClientAccountBalance();
 
   res.contentType("html");
   res.end(`<pre>Minimum balance: ${formatTenths(minimumBalance)}

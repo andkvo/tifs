@@ -4,21 +4,16 @@ import { aaCors, LogLevel, curryLogWithTimestamp } from "./firebase-utils";
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as Slack from "./models/slack/CeceInteraction";
-import { IAgentRepository } from "./models/agents/IAgentRepository";
-import { FirebaseAgentRepository } from "./models/firebase/FirebaseAgentRepository";
 // import { IClientOrganizationRepository } from "./models/clientOrganizations/IClientOrganizationRepository";
 // import { FirebaseClientOrganizationRepository } from "./models/firebase/FirebaseClientOrganizationRepository";
 import { IPubSub } from "./models/pubsub/IPubSub";
 import { FirebasePubSub } from "./models/firebase/FirebasePubSub";
-import { ITimesheetRepository } from "./models/timesheets/ITimesheetRepository";
-import { FirebaseTimesheetRepository } from "./models/firebase/FirebaseTimesheetRepository";
 // import { MessageInstance } from "twilio/lib/rest/api/v2010/account/message";
 // import { ClientOrganization } from "./models/clientOrganizations/ClientOrganization";
 import { IIdentity } from "./models/common/IIdentity";
 // import { ITextMessageRepository } from "./models/textMessages/ITextMessageRepository";
 // import { FirebaseTextMessageRepository } from "./models/firebase/FirebaseTextMessageRepository";
 import { OutgoingTextMessage } from "./models/textMessages/TextMessage";
-import axios from "axios";
 import { PubSub } from "@google-cloud/pubsub";
 import { AppFactory } from "./domain/AppFactory";
 import { MiddlewareFactory as VerifySlackRequestFactory } from "./middleware/VerifySlackRequest";
@@ -176,9 +171,11 @@ app.post(
 
     switch (payload.command) {
       case "/subscribe":
+        console.log("Triggering message add-sms-subscriber");
         await pubsub.triggerMessage("add-sms-subscriber", payload);
         return res.send("Adding subscriber...");
       case "/broadcast":
+        console.log("Triggering message broadcast-sms-from-slack");
         await pubsub.triggerMessage("broadcast-sms-from-slack", payload);
         return res.send("Preparing message...");
       default:
@@ -194,35 +191,6 @@ export const slackSlashPubSubMessageHandler = async (message: any, ctx: any) => 
   logWithTimestamp(LogLevel.Debug, "Received message context", ctx);
   const payload = message.json;
   logWithTimestamp(LogLevel.Debug, "Decoded SlackSlashMessage", payload);
-
-  let projectId: any;
-  let hoursWorkedString: string;
-
-  [projectId, hoursWorkedString] = payload.text.split(" ");
-  const hoursWorked = parseFloat(hoursWorkedString);
-  const responseUrl = payload.response_url;
-
-  const agentRepo: IAgentRepository = new FirebaseAgentRepository();
-
-  agentRepo
-    .lookupAgentBySlackHandle(payload.user_name)
-    .then((agent) => {
-      const timesheetRepo: ITimesheetRepository = new FirebaseTimesheetRepository();
-
-      return timesheetRepo.save({
-        agentId: agent.id,
-        projectId: projectId,
-        hoursWorked: hoursWorked,
-        date: new Date(Date.now()),
-      });
-    })
-    .then(() => {
-      axios.post(responseUrl, {
-        response_type: "ephemeral",
-        text: `Successfully logged ${hoursWorked} hours on the ${projectId} project.`,
-      });
-    })
-    .catch((err) => logWithTimestamp(LogLevel.Error, err));
 };
 
 function saveMessageToDatabase(eventWebhookRequest: any): Promise<any> {
@@ -368,7 +336,10 @@ export const slackEventPubSubMessageHandler = async (message: any, ctx: any) => 
   }
 };
 
-export const slackInteractionPubSubMessageHandler = async (message: any, ctx: any) => {
+export const slackInteractionPubSubMessageHandler: (message: any, ctx: any) => Promise<void> = async (
+  message: any,
+  ctx: any,
+) => {
   logWithTimestamp(LogLevel.Debug, "Received SlackInteractionMessage", message);
   logWithTimestamp(LogLevel.Debug, "Received message context", ctx);
   const payload = message.json;
@@ -386,6 +357,8 @@ export const slackInteractionPubSubMessageHandler = async (message: any, ctx: an
     switch (interaction.type) {
       case Slack.InteractionType.ACCEPT_TOS:
         return await app.beginFreeTrial();
+      case Slack.InteractionType.SEND_QUEUED_MESSAGE:
+        return await app.sendQueuedMessage().then(() => console.log("Done sending queued message"));
       default:
         logWithTimestamp(LogLevel.Warn, "Unhandled interation", interaction);
         return;

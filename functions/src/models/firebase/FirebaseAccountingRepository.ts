@@ -1,32 +1,63 @@
-import { IAccountingRepository } from "../accounting/IAccountingRepository";
+import { IClientAccountingRepository } from "../accounting/IClientAccountingRepository";
 import * as admin from "firebase-admin";
 import { Timestamp, QueryDocumentSnapshot } from "@google-cloud/firestore";
 import { ClientAccountLedgerEntry } from "../accounting/ClientAccountLedgerEntry";
 import { IIdentity } from "../common/IIdentity";
+import _ = require("lodash");
 
-export class FirebaseAccountingRepository implements IAccountingRepository {
-  async getClientAccountBalance(clientId: string, asOfDate?: Date): Promise<number> {
-    const lastCalculated = await this.getBalanceInternal(clientId, asOfDate);
+export class FirebaseAccountingRepository implements IClientAccountingRepository {
+  private clientId: string;
+  private collectionPath: string;
+
+  constructor(clientId: string) {
+    this.clientId = clientId;
+    this.collectionPath = `organizationPreferences/${this.clientId}/ledgerEntries`;
+  }
+
+  async createPreliminaryBillingRecord(
+    amount: number,
+    quantity: number,
+    traceKey: string,
+  ): Promise<ClientAccountLedgerEntry & IIdentity> {
+    const ledger: ClientAccountLedgerEntry = {
+      clientId: this.clientId,
+      quantity,
+      eventDate: new Date(),
+      createDate: new Date(),
+      unitValueInTenths: amount,
+      totalValueInTenths: amount * quantity,
+      traceKey: "",
+      finalized: false,
+    };
+    const newRecord = await admin.firestore().collection(this.collectionPath).add(ledger);
+    const id = newRecord.id;
+    return { id, ...ledger };
+  }
+
+  async getBalanceWithPreliminaries(): Promise<number> {
+    const entries = await admin.firestore().collection(this.collectionPath).get();
+    return _.sumBy(entries.docs, (d) => d.data().totalValueInTenths);
+  }
+
+  async convertToFinalizedBillingRecord(record: ClientAccountLedgerEntry & IIdentity): Promise<void> {
+    await admin.firestore().doc(`${this.collectionPath}/${record.id}`).set({ finalized: true }, { merge: true });
+    return;
+  }
+
+  async deletePremliminaryBillingRecord(record: ClientAccountLedgerEntry & IIdentity): Promise<void> {
+    await admin.firestore().doc(`${this.collectionPath}/${record.id}`).delete();
+    return;
+  }
+
+  async getClientAccountBalance(asOfDate?: Date): Promise<number> {
+    const lastCalculated = await this.getBalanceInternal(asOfDate);
     return lastCalculated && lastCalculated.newBalanceInTenths ? lastCalculated?.newBalanceInTenths || 0 : 0;
   }
 
-  getLedgerEntriesForClient(
-    clientId: string,
-    startDate: Date,
-    endDate?: Date,
-  ): Promise<Array<ClientAccountLedgerEntry & IIdentity>> {
-    if (!clientId) {
-      throw new Error("client is required to look up client ledger");
-    }
-
-    // console.info("ledger entries for client id", clientId);
-    // console.info("start date", startDate);
-
+  getLedgerEntriesForClient(startDate: Date, endDate?: Date): Promise<Array<ClientAccountLedgerEntry & IIdentity>> {
     return admin
       .firestore()
-      .collection("clientLedgerEntries")
-      .doc(clientId)
-      .collection("ledgerEntries")
+      .collection(this.collectionPath)
       .where("eventDate", ">=", Timestamp.fromDate(startDate))
       .orderBy("eventDate", "asc")
       .get()
@@ -50,20 +81,8 @@ export class FirebaseAccountingRepository implements IAccountingRepository {
     throw new Error("not implemented");
   }
 
-  private async getBalanceInternal(clientId: string, asOfDate?: Date): Promise<ClientAccountLedgerEntry | null> {
-    if (!clientId) {
-      throw new Error("client is required to look up client balance");
-    }
-
-    // console.info("balance for client id", clientId);
-    // console.info("asOfDate", asOfDate);
-
-    let query = admin
-      .firestore()
-      .collection("clientLedgerEntries")
-      .doc(clientId)
-      .collection("ledgerEntries")
-      .orderBy("eventDate", "desc");
+  private async getBalanceInternal(asOfDate?: Date): Promise<ClientAccountLedgerEntry | null> {
+    let query = admin.firestore().collection(this.collectionPath).orderBy("eventDate", "desc");
 
     if (asOfDate) {
       query = query.where("eventDate", "<", Timestamp.fromDate(asOfDate));

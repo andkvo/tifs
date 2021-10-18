@@ -1,1 +1,1 @@
-export type ICommand = () => Promise<void>;
+export type ICommand<T> = () => Promise<T>;

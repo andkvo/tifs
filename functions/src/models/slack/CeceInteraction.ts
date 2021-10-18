@@ -1,6 +1,7 @@
 export enum InteractionType {
   UNKNOWN,
   ACCEPT_TOS,
+  SEND_QUEUED_MESSAGE,
 }
 
 export class CeceInteraction {
@@ -12,6 +13,7 @@ export class CeceInteraction {
 
   get type(): InteractionType {
     if (this.interactionData?.actions[0]?.value === "accept_tos") return InteractionType.ACCEPT_TOS;
+    if (/^send_broadcast_/.test(this.interactionData?.actions[0]?.value)) return InteractionType.SEND_QUEUED_MESSAGE;
     return InteractionType.UNKNOWN;
   }
 
@@ -21,5 +23,12 @@ export class CeceInteraction {
 
   get userId(): string {
     return this.interactionData?.user?.id;
+  }
+
+  get broadcastId(): string {
+    return (this.interactionData?.actions[0]?.value || "")
+      .match(/_[^_]*$/)
+      .pop()
+      .substring(1);
   }
 }
