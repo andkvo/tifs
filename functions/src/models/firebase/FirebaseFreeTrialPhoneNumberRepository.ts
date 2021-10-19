@@ -7,7 +7,13 @@ const COLLECTION_NAME = "freeTrialNumbers";
 export class FirebaseFreeTrialPhoneNumberRepository implements IFreeTrialPhoneNumberRepository {
   async getAll(): Promise<Array<FreeTrialPhoneNumber>> {
     const phoneNumberCollection = await admin.firestore().collection(COLLECTION_NAME).get();
-    return phoneNumberCollection.docs.map((d) => ({ phoneNumber: d.data().phoneNumber }));
+    return phoneNumberCollection.docs.map((d) => {
+      const docData = d.data();
+      return {
+        phoneNumber: docData.phoneNumber,
+        phoneNumberSid: docData.phoneNumberSid,
+      };
+    });
   }
 
   async reserveFreeTrialNumber(clientId: string): Promise<FreeTrialPhoneNumber> {
@@ -44,6 +50,8 @@ export class FirebaseFreeTrialPhoneNumberRepository implements IFreeTrialPhoneNu
 
     if (!doc) throw new Error("Unexpected error when attempting to reserve number");
 
-    return { phoneNumber: doc.data().phoneNumber };
+    const docData = doc.data();
+
+    return { phoneNumber: docData.phoneNumber, phoneNumberSid: docData.phoneNumberSid };
   }
 }

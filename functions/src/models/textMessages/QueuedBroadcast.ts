@@ -24,7 +24,10 @@ export class QueuedBroadcast implements IQueuedBroadcast {
   }
 
   get totalCost(): number {
-    const messageChunkCount = Math.ceil(this.message.length / SMS_CHUNK_LENGTH);
-    return this.#client.smsCostInTenths * messageChunkCount;
+    return this.#client.smsCostInTenths * this.totalSegments;
+  }
+
+  get totalSegments(): number {
+    return Math.ceil(this.message.length / SMS_CHUNK_LENGTH);
   }
 }

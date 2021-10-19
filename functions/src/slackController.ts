@@ -350,9 +350,11 @@ export const slackInteractionPubSubMessageHandler: (message: any, ctx: any) => P
       logWithTimestamp(LogLevel.Error, err);
     });
 
+    const config = functions.config();
+
     const interaction = new Slack.CeceInteraction(payload);
     logWithTimestamp(LogLevel.Debug, "Created interaction object", interaction);
-    const app = await AppFactory.createAppForSlackInteraction(interaction);
+    const app = await AppFactory.createAppForSlackInteraction(interaction, config);
 
     switch (interaction.type) {
       case Slack.InteractionType.ACCEPT_TOS:

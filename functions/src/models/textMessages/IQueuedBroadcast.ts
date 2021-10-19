@@ -13,4 +13,5 @@ export interface IQueuedBroadcast {
   status: QueuedBroadcastStatus;
   createdOn: number;
   lock?: string;
+  totalSegments: number;
 }

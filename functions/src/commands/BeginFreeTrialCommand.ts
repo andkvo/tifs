@@ -1,4 +1,5 @@
 import { ICommand } from "../domain/ICommand";
+import { IClientOrganizationRepository } from "../models/clientOrganizations/IClientOrganizationRepository";
 import { FirebaseFreeTrialPhoneNumberRepository } from "../models/firebase/FirebaseFreeTrialPhoneNumberRepository";
 import { SlackWorkspaceSdk } from "../models/slack/SlackWorkspaceSdk";
 
@@ -7,11 +8,22 @@ export function BeginFreeTrialCommandFactory(
   clientId: string,
   slack: SlackWorkspaceSdk,
   phoneRepo: FirebaseFreeTrialPhoneNumberRepository,
-): ICommand {
+  clientRepo: IClientOrganizationRepository,
+): ICommand<void> {
   return async function BeginFreeTrialCommand() {
+    // todoamk: check client record to make sure they haven't had a free trial yet
+
     const conv = await slack.openConversation(slackUserId);
     try {
       const phoneRecord = await phoneRepo.reserveFreeTrialNumber(clientId);
+      const client = await clientRepo.find(clientId);
+
+      if (!client) throw new Error("Client could not be found");
+
+      client.cecePhoneNumber = phoneRecord.phoneNumber;
+      client.cecePhoneNumberTwilioSid = phoneRecord.phoneNumberSid;
+      await clientRepo.save(client);
+
       slack.postMessage(conv.channel.id, (message) => {
         message.text = "Your free trial has started and ends soon. Start texting now!";
         message.blocks = [
