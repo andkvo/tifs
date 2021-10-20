@@ -37,6 +37,22 @@ async function determineSlackDestination(sms: any): Promise<(ClientOrganization 
   return Promise.resolve(null);
 }
 
+async function determineSlackDestinationForIncomingSms(sms: any): Promise<(ClientOrganization & IIdentity) | null> {
+  logWithTimestamp(LogLevel.Info, "Locating org preferences for Slack destination...");
+
+  const clientRepo = <IClientOrganizationRepository>new FirebaseClientOrganizationRepository();
+
+  const orgPrefs = await clientRepo.lookupByOfficePhoneNumber(sms.To);
+
+  if (orgPrefs) {
+    logWithTimestamp(LogLevel.Debug, "Found organization preferences", orgPrefs);
+
+    return Promise.resolve(orgPrefs);
+  }
+
+  return Promise.resolve(null);
+}
+
 app.post("/incoming", async (req: express.Request, res: express.Response) => {
   //TODO: validating that this came from twilio somehow?
 
@@ -73,12 +89,10 @@ export const incomingSmsPubSubMessageHandler = async (message: any, ctx: any) =>
   const messageBody: TwilioTextMessage = message.json;
   logWithTimestamp(LogLevel.Debug, "Decoded message", messageBody);
 
-  const repo: ITextMessageRepository = new FirebaseTextMessageRepository();
-  const pubsub: IPubSub = new FirebasePubSub();
-
-  const orgPrefs = await determineSlackDestination(messageBody);
-
+  const orgPrefs = await determineSlackDestinationForIncomingSms(messageBody);
   if (!orgPrefs) throw new Error("Org prefs not found");
+
+  const repo: ITextMessageRepository = new FirebaseTextMessageRepository();
 
   const textMessage = await repo
     .saveNew(mapMessageToRecord(messageBody, orgPrefs.id))
@@ -88,10 +102,7 @@ export const incomingSmsPubSubMessageHandler = async (message: any, ctx: any) =>
     })
     .catch((err) => logWithTimestamp(LogLevel.Error, err));
 
-  pubsub
-    .triggerMessage("accounting-record-inbound-sms", textMessage)
-    .then((msg) => logWithTimestamp(LogLevel.Debug, "Triggered accounting message", msg))
-    .catch((err) => logWithTimestamp(LogLevel.Error, err));
+  console.log(textMessage); // not unused now is it sucka
 
   if (orgPrefs) {
     await postMessageInSlack(orgPrefs.slackChannelId, messageBody.Body); //.catch(err => logWithTimestamp(LogLevel.Error, err));
