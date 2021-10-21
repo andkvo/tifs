@@ -8,8 +8,6 @@ import { FirebaseTextMessageRepository } from "./models/firebase/FirebaseTextMes
 import { TextMessage, TwilioTextMessage } from "./models/textMessages/TextMessage";
 import { ClientOrganization } from "./models/clientOrganizations/ClientOrganization";
 import { IIdentity } from "./models/common/IIdentity";
-import { IPubSub } from "./models/pubsub/IPubSub";
-import { FirebasePubSub } from "./models/firebase/FirebasePubSub";
 import { PubSub } from "@google-cloud/pubsub";
 
 const app = express();
@@ -20,22 +18,6 @@ const logWithTimestamp = (messageLevel: LogLevel, message: string, inspect?: any
 
 app.use(aaCors);
 app.use(express.json());
-
-async function determineSlackDestination(sms: any): Promise<(ClientOrganization & IIdentity) | null> {
-  logWithTimestamp(LogLevel.Info, "Locating org preferences for Slack destination...");
-
-  const clientRepo = <IClientOrganizationRepository>new FirebaseClientOrganizationRepository();
-
-  const orgPrefs = await clientRepo.lookupByClientMobilePhoneNumber(sms.From);
-
-  if (orgPrefs) {
-    logWithTimestamp(LogLevel.Debug, "Found organization preferences", orgPrefs);
-
-    return Promise.resolve(orgPrefs);
-  }
-
-  return Promise.resolve(null);
-}
 
 async function determineSlackDestinationForIncomingSms(sms: any): Promise<(ClientOrganization & IIdentity) | null> {
   logWithTimestamp(LogLevel.Info, "Locating org preferences for Slack destination...");
@@ -54,7 +36,7 @@ async function determineSlackDestinationForIncomingSms(sms: any): Promise<(Clien
 }
 
 app.post("/incoming", async (req: express.Request, res: express.Response) => {
-  //TODO: validating that this came from twilio somehow?
+  //TODO: validating that this came from twilio somehow???
 
   // match the destination number to a client
   // is this origin number allowed to text?
